@@ -13,7 +13,7 @@ public:
 	string readBytes(int);
 	string readBytes(int, int);
 private:
-	FILE* readFile;
+	FILE* readFile = NULL;
 };
 #endif // !~ HexReader_H
 
@@ -61,3 +61,4 @@ string HexReader::readAllBytes()
 
 	return (string)fileContent;
 }
+
