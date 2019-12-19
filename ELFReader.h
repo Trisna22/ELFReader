@@ -7,26 +7,26 @@
 class ELFReader : public ELFHeader
 {
 public:
-	ELFReader();
+	ELFReader(string);
 	void readELF();
-
-protected:
-
+	bool IsReady();
+private:
+	FILE* readFile = NULL;
 };
 
 
 #endif // !~ELFReader_H
 
 
-ELFReader::ELFReader()
+ELFReader::ELFReader(string FileName) : ELFHeader::ELFHeader(FileName)
 {
-
+	readFile = fopen(FileName.c_str(), "rb");
 }
 
 void ELFReader::readELF()
 {
 	// Super class.
-	ELFHeader::readHeader();
+	ELFHeader::readELF();
 
 	printf("ELF rest data...\n");
 }
