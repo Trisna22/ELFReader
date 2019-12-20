@@ -56,27 +56,40 @@ private:
 	} ELF_HEADERREST;
 
 
-	/*   Program header structure.   */
+	/*   Program header structure. x32   */
 	typedef struct ELF_ProgramHeader32 {
 		unsigned int segmentType;		// Segment type.
 		unsigned int segmentOffset;		// Segment offset.
 		unsigned int VirtualAddress;		// Virtual address.
 		unsigned int physicalAddress;		// Physical address.
-		unsigned int segmentSize;		// Segment size.
+		unsigned int segmentSizeFile;		// Segment size in file image.
+		unsigned int segmentSizeMemory;		// Segment size in memory.
+		unsigned int segmentFlags;		// Segment flags.
+		unsigned int alignment;			// Aligment.
 	} ELF_PROGRAMHEADER32;
 
+	/*   Program header structure. x64   */
 	typedef struct ELF_ProgramHeader64 {
 		unsigned int segmentType;		// Segment type.
 		unsigned int segmentFlags;		// Segment flags.
 		unsigned long segmentOffset;		// Segment offset.
+		unsigned long VirtualAddress;		// Virtual address.
+		unsigned long physicalAddress;		// Physical address.
+		unsigned long segmentSizeFile;		// Segment size in file image.
+		unsigned long segmentSizeMemory;	// Segment size in memory.
+		unsigned long alignment;			// Aligment.
 	} ELF_PROGRAMHEADER64;
 
 	/*   Section header structure.   */
 protected:
 	void readELFHeader();
 	void readProgramHeader();
+	void readProgramHeader32();
+	void readProgramHeader64();
 	void readSectionHeader();
-	int BitSystem, Endian, targetABI;
+
+	int BitSystem, Endian, targetABI, ProgramHeaderStart, SectionHeaderStart;
+	int CountOfProgramHeaders, CountOfSectionHeaders;
 
 };
 
@@ -366,6 +379,9 @@ void ELFHeader::readELFHeader()
 		printf("\n:Entry address:\t\t\t0x%x\n", memAddresses.entryAddress);
 		printf(":Program header offset:\t\t%d bytes in file\n", memAddresses.programHeaderTable);
 		printf(":Section header offset:\t\t%d bytes in file\n", memAddresses.sectionAddress);
+		ProgramHeaderStart = memAddresses.programHeaderTable;
+		SectionHeaderStart = memAddresses.sectionAddress;
+
 	}
 	else
 	{
@@ -380,6 +396,9 @@ void ELFHeader::readELFHeader()
 		printf("\n:Entry address:\t\t\t0x%lx\n", memAddresses.entryAddress);
 		printf(":Program header offset:\t\t%ld bytes in file\n", memAddresses.programHeaderTable);
 		printf(":Section header offset:\t\t%ld bytes in file\n", memAddresses.sectionAddress);
+		ProgramHeaderStart = memAddresses.programHeaderTable;
+		SectionHeaderStart = memAddresses.sectionAddress;
+
 	}
 
 	// Reading the rest of the bytes.
@@ -405,6 +424,8 @@ void ELFHeader::readELFHeader()
 	// Program header entry count.
 	printf(":Program header entries:\t%d\n", GetIntFromBytes(restHeader.programHeaderCount[0],
 		restHeader.programHeaderCount[1]));
+	CountOfProgramHeaders = GetIntFromBytes(restHeader.programHeaderCount[0],
+		restHeader.programHeaderCount[1]);
 
 	// Section header size.
 	printf("\n:Section header size:\t\t%d bytes\n", GetIntFromBytes(restHeader.sectionHeaderSize[0],
@@ -413,19 +434,86 @@ void ELFHeader::readELFHeader()
 	// Section header entries.
 	printf(":Section header entries:\t%d\n", GetIntFromBytes(
 		restHeader.sectionHeaderCount[0], restHeader.sectionHeaderCount[1]));
+	CountOfSectionHeaders = GetIntFromBytes(restHeader.sectionHeaderCount[0],
+		restHeader.sectionHeaderCount[1]);
 
 	// Section header index.
-	printf("Section string table index:\t%d\n", GetIntFromBytes(
+	printf(":Section string table index:\t%d\n\n", GetIntFromBytes(
 		restHeader.sectionHeaderIndex[0], restHeader.sectionHeaderIndex[1]));
 }
 
-/*   Reading the program header of file   */
+/*   Reading the program header of file.   */
 void ELFHeader::readProgramHeader()
 {
-	
+	printf("╔╔╔═════════════════════════════════════╗╗╗\n");
+	printf("║║║┼───────────Program Header──────────┼║║║\n");
+	printf("╚╚╚═════════════════════════════════════╝╝╝\n\n");
+
+	if (BitSystem == 0x01)
+	{
+		readProgramHeader32();
+	}
+	else
+	{
+		readProgramHeader64();
+	}
 }
 
-/*   Reading the section header of file   */
+/*   Reading x32 program header.   */
+void ELFHeader::readProgramHeader32()
+{
+	// First change position to given offset.
+	fseek(readFile, ProgramHeaderStart, SEEK_SET);
+
+	// For every entry we can read the program header.
+	for (int i = 0; i < CountOfProgramHeaders; i++)
+	{
+		ELF_PROGRAMHEADER32 programHeader;
+		if (fread(&programHeader, sizeof(ELF_PROGRAMHEADER32), 1, readFile) == 0)
+		{
+			printf("ProgramHeader: Failed to read bytes for program header[%d]!\n", i);
+		}
+
+		printf("Program Header [%d]:\n", i);
+
+		// Get the type for this entry.
+		printf("\t:Segment type:\t\t\t");
+		switch (programHeader.segmentType)
+		{
+			case 0x00:
+				printf("Entry unused\n");
+				break;
+
+			default:
+				printf("Unknown entry\n");
+				break;
+		}
+
+		/*
+		x32
+
+		unsigned int segmentType;               // Segment type.
+                unsigned int segmentOffset;             // Segment offset.
+                unsigned int VirtualAddress;            // Virtual address.
+                unsigned int physicalAddress;           // Physical address.
+                unsigned int segmentSizeFile;           // Segment size in file image.
+                unsigned int segmentSizeMemory;         // Segment size in memory.
+                unsigned int segmentFlags;              // Segment flags.
+                                                                                                                unsigned int alignment; 
+		*/
+	}
+
+}
+
+/*   Reading x64 program header.   */
+void ELFHeader::readProgramHeader64()
+{
+	ELF_PROGRAMHEADER64 programHeader;
+	fread(&programHeader, sizeof(ELF_PROGRAMHEADER64), 1, readFile);
+
+}
+
+/*   Reading the section header of file.   */
 void ELFHeader::readSectionHeader()
 {
 
