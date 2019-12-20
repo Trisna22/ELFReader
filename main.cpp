@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
 	}
 
 	ELFReader reader(argv[1]);
-	reader.readELF();
+	reader.readAllELF();
 
 //	HexReader hex("./test32");
 //	cout << hex.readAllBytes() << endl;

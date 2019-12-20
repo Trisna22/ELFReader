@@ -8,7 +8,7 @@ class ELFReader : public ELFHeader
 {
 public:
 	ELFReader(string);
-	void readELF();
+	void readAllELF();
 	bool IsReady();
 private:
 	FILE* readFile = NULL;
@@ -23,10 +23,12 @@ ELFReader::ELFReader(string FileName) : ELFHeader::ELFHeader(FileName)
 	readFile = fopen(FileName.c_str(), "rb");
 }
 
-void ELFReader::readELF()
+void ELFReader::readAllELF()
 {
 	// Super class.
-	ELFHeader::readELF();
+	ELFHeader::readELFHeader();
+	ELFHeader::readProgramHeader();
+	ELFHeader::readSectionHeader();
 
 	printf("ELF rest data...\n");
 }
