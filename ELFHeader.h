@@ -80,13 +80,44 @@ private:
 		unsigned long alignment;		// Aligment.
 	} ELF_PROGRAMHEADER64;
 
-	/*   Section header structure.   */
+	/*   Section header structure. x32   */
+	typedef struct ELF_SectionHeader32 {
+		unsigned int sectionName;
+		unsigned int sectionType;
+		unsigned int sectionAttributes;
+		unsigned int virtualAddress;
+		unsigned int offset;
+		unsigned int sectionSizeFile;
+		unsigned int sectionIndex;
+		unsigned int extraInfo;
+		unsigned int requiredAlign;
+		unsigned int entrySize;
+
+	} ELF_SECTIONHEADER32;
+
+	/*   Section header structure. x64   */
+	typedef struct ELF_SectionHeader64 {
+		unsigned int sectionName;
+		unsigned int sectionType;
+		unsigned long sectionAttributes;
+		unsigned long virtualAddress;
+		unsigned long offset;
+		unsigned long sectionSizeFile;
+		unsigned int sectionIndex;
+		unsigned int extraInfo;
+		unsigned long requiredAlign;
+		unsigned long entrySize;
+	} ELF_SECTIONHEADER64;
+
 protected:
 	void readELFHeader();
 	void readProgramHeader();
 	void readProgramHeader32();
 	void readProgramHeader64();
+
 	void readSectionHeader();
+	void readSectionHeader32();
+	void readSectionHeader64();
 
 	int BitSystem, Endian, targetABI, ProgramHeaderStart, SectionHeaderStart;
 	int CountOfProgramHeaders, CountOfSectionHeaders;
@@ -99,6 +130,10 @@ protected:
 ELFHeader::ELFHeader(string FileName)
 {
 	this->readFile = fopen(FileName.c_str(), "rb");
+	if (readFile == NULL)
+	{
+		printf("Failed to open file! Error code: %d\n", errno);
+	}
 }
 
 /*   Constructor with pointer to file object.   */
@@ -143,7 +178,7 @@ void ELFHeader::readELFHeader()
 	// Check if class is ready.
 	if (IsReady() == false)
 	{
-		printf("ELFHeader not ready yet!\n");
+		printf("ELF class not ready yet!\n");
 		return;
 	}
 
@@ -379,8 +414,8 @@ void ELFHeader::readELFHeader()
 		printf("\n:Entry address:\t\t\t0x%x\n", memAddresses.entryAddress);
 		printf(":Program header offset:\t\t%d bytes in file\n", memAddresses.programHeaderTable);
 		printf(":Section header offset:\t\t%d bytes in file\n", memAddresses.sectionAddress);
-		ProgramHeaderStart = memAddresses.programHeaderTable;
-		SectionHeaderStart = memAddresses.sectionAddress;
+		this->ProgramHeaderStart = memAddresses.programHeaderTable;
+		this->SectionHeaderStart = memAddresses.sectionAddress;
 
 	}
 	else
@@ -396,8 +431,8 @@ void ELFHeader::readELFHeader()
 		printf("\n:Entry address:\t\t\t0x%lx\n", memAddresses.entryAddress);
 		printf(":Program header offset:\t\t%ld bytes in file\n", memAddresses.programHeaderTable);
 		printf(":Section header offset:\t\t%ld bytes in file\n", memAddresses.sectionAddress);
-		ProgramHeaderStart = memAddresses.programHeaderTable;
-		SectionHeaderStart = memAddresses.sectionAddress;
+		this->ProgramHeaderStart = memAddresses.programHeaderTable;
+		this->SectionHeaderStart = memAddresses.sectionAddress;
 
 	}
 
@@ -424,7 +459,7 @@ void ELFHeader::readELFHeader()
 	// Program header entry count.
 	printf(":Program header entries:\t%d\n", GetIntFromBytes(restHeader.programHeaderCount[0],
 		restHeader.programHeaderCount[1]));
-	CountOfProgramHeaders = GetIntFromBytes(restHeader.programHeaderCount[0],
+	this->CountOfProgramHeaders = GetIntFromBytes(restHeader.programHeaderCount[0],
 		restHeader.programHeaderCount[1]);
 
 	// Section header size.
@@ -434,7 +469,7 @@ void ELFHeader::readELFHeader()
 	// Section header entries.
 	printf(":Section header entries:\t%d\n", GetIntFromBytes(
 		restHeader.sectionHeaderCount[0], restHeader.sectionHeaderCount[1]));
-	CountOfSectionHeaders = GetIntFromBytes(restHeader.sectionHeaderCount[0],
+	this->CountOfSectionHeaders = GetIntFromBytes(restHeader.sectionHeaderCount[0],
 		restHeader.sectionHeaderCount[1]);
 
 	// Section header index.
@@ -449,6 +484,14 @@ void ELFHeader::readProgramHeader()
 	printf("║║║┼───────────Program Header──────────┼║║║\n");
 	printf("╚╚╚═════════════════════════════════════╝╝╝\n\n");
 
+	// Check if class is ready.
+	if (IsReady() == false)
+	{
+		printf("ELF class not ready yet!\n");
+		return;
+	}
+
+	// Bit system specific.
 	if (BitSystem == 0x01)
 	{
 		readProgramHeader32();
@@ -472,6 +515,8 @@ void ELFHeader::readProgramHeader32()
 		if (fread(&programHeader, sizeof(ELF_PROGRAMHEADER32), 1, readFile) == 0)
 		{
 			printf("ProgramHeader: Failed to read bytes for program header[%d]!\n", i);
+			this->InvalidELFFormat = true;
+			return;
 		}
 
 		printf("Program Header [%d]:\n", i);
@@ -525,7 +570,7 @@ void ELFHeader::readProgramHeader32()
 		printf("\t:Flags:\t\t\t\t0x%x\n", programHeader.segmentFlags);
 
 		// Alignment.
-		printf("\t:Alignment:\t\t\t0x%x\n", programHeader.alignment);
+		printf("\t:Alignment:\t\t\t0x%x\n\n", programHeader.alignment);
 	}
 
 }
@@ -533,13 +578,288 @@ void ELFHeader::readProgramHeader32()
 /*   Reading x64 program header.   */
 void ELFHeader::readProgramHeader64()
 {
-	ELF_PROGRAMHEADER64 programHeader;
-	fread(&programHeader, sizeof(ELF_PROGRAMHEADER64), 1, readFile);
+	// First change position to given offset.
+	fseek(readFile, ProgramHeaderStart, SEEK_SET);
 
+	for (int i = 0; i < CountOfProgramHeaders; i++)
+	{
+		ELF_PROGRAMHEADER64 programHeader;
+		if (fread(&programHeader, sizeof(ELF_PROGRAMHEADER64), 1, readFile) == 0)
+		{
+			printf("ProgramHeader: Failed to read bytes for program header[%d]!\n", i);
+			this->InvalidELFFormat = true;
+			return;
+		}
+
+		printf("Program Header [%d]:\n", i);
+
+		// Get the segment type.
+		printf("\t:Segment type:\t\t\t");
+		switch (programHeader.segmentType)
+		{
+			case 0x00:
+				printf("Entry unused (PT_NULL)\n");
+				break;
+			case 0x00000001:
+				printf("Loadable segment (PT_LOAD)\n");
+				break;
+			case 0x00000002:
+				printf("Dynamic linking information (PT_DYNAMIC)\n");
+				break;
+			case 0x00000003:
+				printf("Interpreter information (PT_INTERP)\n");
+				break;
+			case 0x00000004:
+				printf("Auxillary information (PT_NOTE)\n");
+				break;
+			case 0x00000005:
+				printf("Reserved (PT_SHLIB)\n");
+				break;
+			case 0x00000006:
+				printf("Contains program header table. (PT_PHDR)\n");
+				break;
+			default:
+				printf("Unknown entry 0x%x\n", programHeader.segmentType);
+				break;
+		}
+
+		// Segment offset.
+		printf("\t:Offset in file image:\t\t0x%ld\n", programHeader.segmentOffset);
+
+		// Virtual address of segment.
+		printf("\t:Virtual address:\t\t0x%lx\n", programHeader.virtualAddress);
+
+		// Physical address of segment.
+		printf("\t:Physical address:\t\t0x%lx\n", programHeader.physicalAddress);
+
+		// Size in bytes in the file image.
+		printf("\t:Filesize segment:\t\t%ld bytes\n", programHeader.segmentSizeFile);
+
+		// Size in bytes in memory.
+		printf("\t:Memorysize segment:\t\t%ld bytes\n", programHeader.segmentSizeMemory);
+
+		// Flags.
+		printf("\t:Flags:\t\t\t\t0x%x\n", programHeader.segmentFlags);
+
+		// Alignment.
+		printf("\t:Alignment:\t\t\t0x%lx\n\n", programHeader.alignment);
+	}
 }
+
+
 
 /*   Reading the section header of file.   */
 void ELFHeader::readSectionHeader()
 {
+        printf("╔╔╔═════════════════════════════════════╗╗╗\n");
+	printf("║║║┼───────────Section Header──────────┼║║║\n");
+	printf("╚╚╚═════════════════════════════════════╝╝╝\n\n");
+
+	// Check if class is ready.
+	if (IsReady() == false)
+	{
+		printf("ELF class not ready yet!\n");
+		return;
+	}
+
+	// Bit system specific.
+        if (BitSystem == 0x01)
+	{
+		readSectionHeader32();
+	}
+	else
+	{
+		readSectionHeader64();
+	}
+}
+
+/*   Reading x32 section header.   */
+void ELFHeader::readSectionHeader32()
+{
+	// First change position to given offset.
+	fseek(readFile, SectionHeaderStart, SEEK_SET);
+
+	for (int i = 0; i < CountOfSectionHeaders; i++)
+	{
+		ELF_SECTIONHEADER32 sectionHeader;
+		if (fread(&sectionHeader, sizeof(ELF_SECTIONHEADER32), 1, readFile) == 0)
+		{
+			printf("SectionHeader: Failed to read bytes for section header!\n");
+			this->InvalidELFFormat = true;
+			return;
+		}
+
+		printf("Header [%d]: \n", i);
+
+		// Retrieve the address of name in string table.
+		printf("\tAddress of name: \t\t0x%x\n", sectionHeader.sectionName);
+
+		// Get the name from string table.
+		// ...read(sectionAddressName);
+
+		// Section type.
+		printf("\tSection type: \t\t\t");
+		switch (sectionHeader.sectionType)
+		{
+			case 0x0:
+				printf("Section table entry unused\n");
+				break;
+			case 0x1:
+				printf("Program data\n");
+				break;
+			case 0x2:
+				printf("Symbol table\n");
+				break;
+			case 0x3:
+				printf("String table\n");
+				break;
+			case 0x4:
+				printf("Relocation entries (addends)\n");
+				break;
+			case 0x5:
+				printf("Hash table\n");
+				break;
+			case 0x6:
+				printf("Dynamic linking table\n");
+				break;
+			case 0x7:
+				printf("Notes/comments\n");
+				break;
+			case 0x8:
+				printf("Uninitialized space\n");
+				break;
+			case 0x9:
+				printf("Relocation entries (no addens)\n");
+				break;
+			case 0x0A:
+				printf("Reserved\n");
+				break;
+			case 0x0B:
+				printf("Dynamic linker symbol table\n");
+				break;
+			case 0x0E:
+				printf("Array of constructors\n");
+				break;
+			case 0x0F:
+				printf("Array of deconstructors\n");
+				break;
+			case 0x10:
+				printf("Array of pre-constructors\n");
+				break;
+			case 0x11:
+				printf("Section group\n");
+				break;
+			case 0x12:
+				printf("Extended section\n");
+				break;
+			case 0x13:
+				printf("Number of defined types\n");
+
+			default:
+				printf("Unknown section table entry\n");
+				break;
+		}
+
+		// Section attributes.
+		printf("\tAttributes: \t\t\t");
+		switch (sectionHeader.sectionAttributes)
+		{
+			case 0x1:
+				printf("Writeable\n");
+				break;
+			case 0x2:
+				printf("Occupies memory during execution\n");
+				break;
+			case 0x4:
+				printf("Executable\n");
+				break;
+			case 0x10:
+				printf("Might be merged\n");
+				break;
+			case 0x20:
+				printf("Contains null terminated strings\n");
+				break;
+			case 0x30:
+				printf("Contains indexes\n");
+				break;
+			case 0x80:
+				printf("Preserve order after combining\n");
+				break;
+			case 0x100:
+				printf("Non-standard OS checking\n");
+				break;
+			case 0x200:
+				printf("Section is member of group\n");
+				break;
+			case 0x400:
+				printf("Section hold thread-local data\n");
+				break;
+			case 0x0ff00000:
+				printf("OS specific\n");
+				break;
+			case 0xf0000000:
+				printf("Processor specific\n");
+				break;
+			default:
+				printf("Unknown attributes\n");
+				break;
+		}
+
+		// Virtual address.
+		printf("\tVirtual address:\t\t0x%x\n", sectionHeader.virtualAddress);
+
+		// Offset of section in file.
+		printf("\tFile offset: \t\t\t%d\n", sectionHeader.offset);
+
+		// Size of section.
+		printf("\tSection size: \t\t\t%d bytes\n", sectionHeader.sectionSizeFile);
+
+		// Index of section.
+		printf("\tSection index:\t\t\t%d\n", sectionHeader.sectionIndex);
+
+		// Extra info.
+		printf("\tExtra info:\t\t\t0x%x\n", sectionHeader.extraInfo);
+
+		// Required alignment.
+		printf("\tRequired alignment:\t\t%d\n", sectionHeader.requiredAlign);
+
+		// Entry size.
+		printf("\tEntry size: \t\t\t%d bytes\n\n", sectionHeader.entrySize);
+
+		/*
+        	typedef struct ELF_SectionHeader32 {
+                	unsigned int sectionName;
+	                unsigned int sectionType;
+	                unsigned int sectionAttributes;
+        	        unsigned int virtualAddress;
+	                unsigned int offset;
+	                unsigned int sectionSizeFile;
+	                unsigned int sectionIndex;
+	                unsigned int extraInfo;
+	                unsigned int requiredAlign;
+	                unsigned int entrySize;
+	        } ELF_SECTIONHEADER32;*/
+
+	}
+}
+
+/*   Reading x64 section header.   */
+void ELFHeader::readSectionHeader64()
+{
+
+        /*   Section header structure. x64   */
+        typedef struct ELF_SectionHeader64 {
+                unsigned int sectionName;
+                unsigned int sectionType;
+                unsigned long sectionAttributes;
+                unsigned long virtualAddress;
+                unsigned long offset;
+                unsigned long sectionSizeFile;
+                unsigned int sectionIndex;
+                unsigned int extraInfo;
+                unsigned long requiredAlign;
+                unsigned long entrySize;
+        } ELF_SECTIONHEADER64;
+
 
 }
