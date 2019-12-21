@@ -1,5 +1,5 @@
 # ELFReader
-Software that can read x32/x64 bit ELF files for patching or viewing assebly code.
+Software that can read x32/x64 bit ELF files for patching or viewing assembly code.
 
 This project is meant to learn about ELF formats and assembling them. The program is able to
 read the ELF programs in assembly language. It can patch bytes from the program by changing the
