@@ -60,7 +60,7 @@ private:
 	typedef struct ELF_ProgramHeader32 {
 		unsigned int segmentType;		// Segment type.
 		unsigned int segmentOffset;		// Segment offset.
-		unsigned int VirtualAddress;		// Virtual address.
+		unsigned int virtualAddress;		// Virtual address.
 		unsigned int physicalAddress;		// Physical address.
 		unsigned int segmentSizeFile;		// Segment size in file image.
 		unsigned int segmentSizeMemory;		// Segment size in memory.
@@ -73,11 +73,11 @@ private:
 		unsigned int segmentType;		// Segment type.
 		unsigned int segmentFlags;		// Segment flags.
 		unsigned long segmentOffset;		// Segment offset.
-		unsigned long VirtualAddress;		// Virtual address.
+		unsigned long virtualAddress;		// Virtual address.
 		unsigned long physicalAddress;		// Physical address.
 		unsigned long segmentSizeFile;		// Segment size in file image.
 		unsigned long segmentSizeMemory;	// Segment size in memory.
-		unsigned long alignment;			// Aligment.
+		unsigned long alignment;		// Aligment.
 	} ELF_PROGRAMHEADER64;
 
 	/*   Section header structure.   */
@@ -481,26 +481,51 @@ void ELFHeader::readProgramHeader32()
 		switch (programHeader.segmentType)
 		{
 			case 0x00:
-				printf("Entry unused\n");
+				printf("Entry unused (PT_NULL)\n");
 				break;
-
+			case 0x00000001:
+				printf("Loadable segment (PT_LOAD)\n");
+				break;
+			case 0x00000002:
+				printf("Dynamic linking information (PT_DYNAMIC)\n");
+				break;
+			case 0x00000003:
+				printf("Interpreter information (PT_INTERP)\n");
+				break;
+			case 0x00000004:
+				printf("Auxillary information (PT_NOTE)\n");
+				break;
+			case 0x00000005:
+				printf("Reserved (PT_SHLIB)\n");
+				break;
+			case 0x00000006:
+				printf("Contains program header table. (PT_PHDR)\n");
+				break;
 			default:
-				printf("Unknown entry\n");
+				printf("Unknown entry 0x%x\n", programHeader.segmentType);
 				break;
 		}
 
-		/*
-		x32
+		// Segment offset.
+		printf("\t:Offset in file image:\t\t0x%d\n", programHeader.segmentOffset);
 
-		unsigned int segmentType;               // Segment type.
-                unsigned int segmentOffset;             // Segment offset.
-                unsigned int VirtualAddress;            // Virtual address.
-                unsigned int physicalAddress;           // Physical address.
-                unsigned int segmentSizeFile;           // Segment size in file image.
-                unsigned int segmentSizeMemory;         // Segment size in memory.
-                unsigned int segmentFlags;              // Segment flags.
-                                                                                                                unsigned int alignment; 
-		*/
+		// Virtual address of segment.
+		printf("\t:Virtual address:\t\t0x%x\n", programHeader.virtualAddress);
+
+		// Physical address of segment.
+		printf("\t:Physical address:\t\t0x%x\n", programHeader.physicalAddress);
+
+		// Size in bytes in the file image.
+		printf("\t:Filesize segment:\t\t%d bytes\n", programHeader.segmentSizeFile);
+
+		// Size in bytes in memory.
+		printf("\t:Memorysize segment:\t\t%d bytes\n", programHeader.segmentSizeMemory);
+
+		// Flags.
+		printf("\t:Flags:\t\t\t\t0x%x\n", programHeader.segmentFlags);
+
+		// Alignment.
+		printf("\t:Alignment:\t\t\t0x%x\n", programHeader.alignment);
 	}
 
 }
