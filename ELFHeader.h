@@ -82,16 +82,16 @@ private:
 
 	/*   Section header structure. x32   */
 	typedef struct ELF_SectionHeader32 {
-		unsigned int sectionName;
-		unsigned int sectionType;
-		unsigned int sectionAttributes;
-		unsigned int virtualAddress;
-		unsigned int offset;
-		unsigned int sectionSizeFile;
-		unsigned int sectionIndex;
-		unsigned int extraInfo;
-		unsigned int requiredAlign;
-		unsigned int entrySize;
+		unsigned int sectionAddrName;		// Address location of name.
+		unsigned int sectionType;		// Section type.
+		unsigned int sectionAttributes;		// Section attributes.
+		unsigned int virtualAddress;		// Virtual address.
+		unsigned int offset;			// Offset.
+		unsigned int sectionSizeFile;		// Size of section in file.
+		unsigned int sectionIndex;		// Section index.
+		unsigned int extraInfo;			// Additional information.
+		unsigned int requiredAlign;		// Required alignment
+		unsigned int entrySize;			// Size of entry.
 
 	} ELF_SECTIONHEADER32;
 
@@ -692,9 +692,10 @@ void ELFHeader::readSectionHeader32()
 		printf("Header [%d]: \n", i);
 
 		// Retrieve the address of name in string table.
-		printf("\tAddress of name: \t\t0x%x\n", sectionHeader.sectionName);
+		printf("\tAddress of name: \t\t0x%x\n", sectionHeader.sectionAddrName);
 
 		// Get the name from string table.
+		//	THE NAME IS ON THE LOCATION OF THE sectionAddress!!!
 		// ...read(sectionAddressName);
 
 		// Section type.
@@ -825,6 +826,23 @@ void ELFHeader::readSectionHeader32()
 
 		// Entry size.
 		printf("\tEntry size: \t\t\t%d bytes\n\n", sectionHeader.entrySize);
+
+		/**
+			WARNING
+
+			Page 9 at the bottom:
+
+			The standard sections with meaning.
+			http://www.staroceans.org/e-book/elf-64-hp.pdf
+
+			SectionName		Type		Flags		Use
+			.bss			SHT_NOBITS	A, W		Uninitialized data
+			.data			SHT_PROGBITS	A, W		Initialized data
+			.text			SHT_PROGBITS	A, X		Executable code
+
+			We need to base the ELFReader on this bit. Not everything is standard,
+			it has more possibilities than we thought.
+		**
 
 		/*
         	typedef struct ELF_SectionHeader32 {
