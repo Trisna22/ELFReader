@@ -86,6 +86,7 @@ protected:
 	Elf32_Ehdr* elfHeader32;
 	Elf64_Ehdr* elfHeader64;
 
+	/*   Read all functions   */
 	void readELFHeader();
 	void readELFHeader32();
 	void readELFHeader64();
@@ -97,6 +98,10 @@ protected:
 	void readSectionHeader();
 	void readSectionHeader32();
 	void readSectionHeader64();
+
+	/*   Read specific functions   */
+	void readSectionHeader(string);
+	void readSectionHeader(int);
 };
 
 #endif // !~ ELFHeader_H
@@ -105,9 +110,9 @@ protected:
 ELFHeader::ELFHeader(string FileName)
 {
 	this->readFile = fopen(FileName.c_str(), "rb");
-	if (readFile == NULL)
+	if (this->readFile == NULL)
 	{
-		printf("Failed to open file! Error code: %d\n", errno);
+		printf("ELFHeader: Failed to open file! Error code: %d\n", errno);
 	}
 
 	// Check the bitsystem and if is ELF format.
@@ -1149,5 +1154,16 @@ void ELFHeader::readSectionHeader64()
 		// Entry size.
 		printf("  Entry size: \t\t\t%ld bytes (0x%lx)\n\n", sectionHeader.entrySize, sectionHeader.entrySize);
 	}
+
+}
+
+/*   Reads one section header from list. (name specific)   */
+void ELFHeader::readSectionHeader(string sectionName)
+{
+
+}
+/*   Reads one section header from list. (index specific)   */
+void ELFHeader::readSectionHeader(int index)
+{
 
 }
