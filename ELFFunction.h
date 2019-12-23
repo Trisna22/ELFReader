@@ -39,6 +39,8 @@ ELFFunction::ELFFunction(string FileName)
 	if (this->readFile == NULL)
 	{
 		printf("ELFFunction: Failed to open file! Error code: %d\n", errno);
+		this->InvalidELFFormat = true;
+		return;
 	}
 
 	// Check the bitsystem and if is ELF format.
@@ -48,7 +50,8 @@ ELFFunction::ELFFunction(string FileName)
 /*   Deconstructor of the class.   */
 ELFFunction::~ELFFunction()
 {
-	fclose(this->readFile);
+	if (this->readFile != NULL)
+		fclose(this->readFile);
 }
 
 /*   Checks if the class is ready   */
@@ -98,3 +101,14 @@ ELFFunction::ELFHeaderStruct* ELFFunction::ReadELF_Identifier()
 	fseek(readFile, 0, SEEK_SET);
 	return elfHeader;
 }
+
+//	typedef struct
+//	{
+//		Elf64_Word st_name;  /* (4 bytes) Symbol name  */
+//		unsigned char st_info;  /* (1 byte) Symbol type and binding */
+//		unsigned char st_other; /* (1 byte) Symbol visibility */
+//		Elf64_Section st_shndx; /* (2 bytes) Section index */ 
+//		Elf64_Addr st_value; /* (8 bytes) Symbol value */
+//		Elf64_Xword st_size; /*  (8 bytes) Symbol size */
+
+//	} Elf64_Sym;

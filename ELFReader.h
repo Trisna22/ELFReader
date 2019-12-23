@@ -17,8 +17,6 @@ public:
 private:
 	FILE* readFile = NULL;
 };
-
-
 #endif // !~ELFReader_H
 
 
@@ -30,28 +28,50 @@ ELFReader::ELFReader(string FileName) : ELFHeader::ELFHeader(FileName),
 
 void ELFReader::readAllELF()
 {
-	// Super class.
+	if (ELFHeader::IsReady() == false)
+	{
+		cout << "ELFReader class Not ready yet!\n" << endl;
+		return;
+	}
+
+	// Print out all headers.
 	ELFHeader::readELFHeader();
 	ELFHeader::readProgramHeader();
 	ELFHeader::readSectionHeader();
-
-	printf("ELF rest data...\n");
 }
 
 /*   Reads only the section headers.   */
 void ELFReader::readSectionHeader()
 {
+	if (ELFHeader::silentReadELFHeader() == false)
+	{
+		printf("ELFReader: Failed to read ELF header!\n\n");
+		return;
+	}
+
 	ELFHeader::readSectionHeader();
 }
 
 /*   Reads one section header from list. (name specific)   */
 void ELFReader::readSectionHeader(string sectionName)
 {
+	if (ELFHeader::silentReadELFHeader() == false)
+	{
+		printf("ELFReader: Failed to read ELF header!\n\n");
+		return;
+	}
+
 	ELFHeader::readSectionHeader(sectionName);
 }
 
 /*   Reads one section header from list. (index specific)   */
 void ELFReader::readSectionHeader(int index)
 {
+	if (ELFHeader::silentReadELFHeader() == false)
+	{
+		printf("ELFReader: Failed to read ELF header!\n\n");
+		return;
+	}
+
 	ELFHeader::readSectionHeader(index);
 }
