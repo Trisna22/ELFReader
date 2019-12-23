@@ -1277,7 +1277,94 @@ void ELFHeader::readSectionHeader(string sectionName)
 /*   Reads one section header from list. (index specific)   */
 void ELFHeader::readSectionHeader(int index)
 {
-	
+	printf("INDEX: %d\n", index);
+	if (IsReady() == false)
+	{
+		printf("ELF class not ready yet!\n");
+		return;
+	}
+
+	// Get file size.
+	struct stat st;
+	fstat(this->readFile->_fileno, &st);
+
+	// First change position to given offset.
+	fseek(this->readFile, 0, SEEK_SET);
+
+	if (this->identifier->bitSystem == 0x01)
+	{
+		// Read file again, in memory.
+		char* p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE,
+			this->readFile->_fileno, 0); // File int and offset.
+		Elf32_Shdr* shdr = (Elf32_Shdr*)(p + this->elfHeader32->e_shoff);
+
+		// Get the names from string table.
+		Elf32_Shdr* sh_strtab = &shdr[this->elfHeader32->e_shstrndx];
+		const char* const sh_strtab_p = p + sh_strtab->sh_offset;
+
+		fseek(this->readFile, this->elfHeader32->e_shoff, SEEK_SET);
+
+		if (this->elfHeader32->e_shnum < index)
+		{
+			printf("Index doesn't exists!\n");
+			return;
+		}
+
+		for (int i = 0; i < this->elfHeader32->e_shnum; i++)
+		{
+			ELF_SECTIONHEADER32 section;
+			if (fread(&section, sizeof(ELF_SECTIONHEADER32), 1, this->readFile) == 0)
+			{
+				printf("Silent SectionHeader: Failed to read bytes for section header!\n");
+				this->InvalidELFFormat = true;
+				return;
+			}
+
+			this->SectionHeaders32.push_back(section);
+
+		}
+
+		printf("  Name:\t\t\t\t%s\n", sh_strtab_p + shdr[index].sh_name);
+		printSectionHeader(this->SectionHeaders32.at(index));
+		return;
+	}
+	else
+	{
+		// Read file again, in memory.
+		char* p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE,
+			this->readFile->_fileno, 0); // File int and offset.
+		Elf64_Shdr* shdr = (Elf64_Shdr*)(p + this->elfHeader64->e_shoff);
+
+		// Get the names from string table.
+		Elf64_Shdr* sh_strtab = &shdr[this->elfHeader64->e_shstrndx];
+		const char* const sh_strtab_p = p + sh_strtab->sh_offset;
+
+		fseek(this->readFile, this->elfHeader64->e_shoff, SEEK_SET);
+
+		if (this->elfHeader64->e_shnum < index)
+		{
+			printf("Index doesn't exists!\n");
+			return;
+		}
+
+		for (int i = 0; i < this->elfHeader64->e_shnum; i++)
+		{
+			ELF_SECTIONHEADER64 section;
+			if (fread(&section, sizeof(ELF_SECTIONHEADER64), 1, this->readFile) == 0)
+			{
+				printf("Silent SectionHeader: Failed to read bytes for section header!\b");
+				this->InvalidELFFormat = true;
+				return;
+			}
+
+			this->SectionHeaders64.push_back(section);
+
+		}
+
+		printf("  Name:\t\t\t\t%s\n", sh_strtab_p + shdr[index].sh_name);
+		printSectionHeader(this->SectionHeaders64.at(index));
+		return;
+	}
 }
 
 /*   Print out the specified section header.   */
@@ -1551,7 +1638,6 @@ void ELFHeader::printSectionHeader(ELF_SECTIONHEADER64 sectionHeader)
 	printf("  Entry size: \t\t\t%ld bytes (0x%lx)\n\n", sectionHeader.entrySize, sectionHeader.entrySize);
 }
 
-
 /*   Reading the headers in silent. (without output)   */
 bool ELFHeader::silentReadELFHeader()
 {
@@ -1634,8 +1720,7 @@ bool ELFHeader::silentReadSectionHeaders()
 	// Change pointer to beginning of file.
 	fseek(this->readFile, 0, SEEK_SET);
 }
-
 bool ELFHeader::silentReadProgramHeaders()
 {
-
+	return false;
 }
