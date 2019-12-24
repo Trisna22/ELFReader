@@ -25,9 +25,51 @@ private:
 		unsigned char unusedSpace[7];           // Padding.
 	} ELF_HEADER;
 
+	/*   Section header structure. x32   */
+        typedef struct ELF_SectionHeader32 {
+                unsigned int sectionAddrName;           // Address location of name.
+                unsigned int sectionType;               // Section type.
+                unsigned int sectionAttributes;         // Section attributes.
+                unsigned int virtualAddress;            // Virtual address.
+                unsigned int offset;                    // Offset.
+                unsigned int sectionSizeFile;           // Size of section in file.
+                unsigned int sectionIndex;              // Section index.
+                unsigned int extraInfo;                 // Additional information.
+                unsigned int requiredAlign;             // Required alignment
+                unsigned int entrySize;                 // Size of entry.
+
+        } ELF_SECTIONHEADER32;
+
+        /*   Section header structure. x64   */
+        typedef struct ELF_SectionHeader64 {
+                unsigned int sectionAddrName;
+                unsigned int sectionType;
+                unsigned long sectionAttributes;
+                unsigned long virtualAddress;
+                unsigned long offset;
+                unsigned long sectionSizeFile;
+                unsigned int sectionIndex;
+                unsigned int extraInfo;
+                unsigned long requiredAlign;
+                unsigned long entrySize;
+        } ELF_SECTIONHEADER64;
+
 	ELFHeaderStruct* ReadELF_Identifier();
 protected:
 	ELFHeaderStruct* identifier;
+
+	vector<Elf32_Sym> Symbols32;
+	vector<Elf64_Sym> Symbols64;
+
+	/*   Read all symbols   */
+	void readSymbols();
+	void readSymbols32();
+	void readSymbols64();
+
+	/*   Silent functions of reading headers   */
+        bool silentReadELFHeader();
+        bool silentReadSectionHeaders();
+        bool silentReadProgramHeaders();
 };
 
 #endif // !~ ELFFunction_H
@@ -64,6 +106,8 @@ bool ELFFunction::IsReady()
 	// Check if invalid ELF format.
 	if (InvalidELFFormat == true)
 		return false;
+
+	return true;
 }
 
 /*   Get the bitsystem of the file, also check if is really ELF format.   */
@@ -102,6 +146,37 @@ ELFFunction::ELFHeaderStruct* ELFFunction::ReadELF_Identifier()
 	return elfHeader;
 }
 
+/*   Read all symbols.   */
+void ELFFunction::readSymbols()
+{
+	printf("SYMBOLS\n");
+
+	// Read offset of section table with index of symbol table.
+
+	// Elf32_Sym structure.
+
+	//printing out symbols.
+}
+void ELFFunction::readSymbols32()
+{
+
+}
+void ELFFunction::readSymbols64()
+{
+
+}
+
+
+/*   Silent functions of reading headers   */
+bool ELFFunction::silentReadELFHeader()
+{
+	return false;
+}
+bool ELFFunction::silentReadSectionHeaders()
+{
+	return false;
+}
+
 //	typedef struct
 //	{
 //		Elf64_Word st_name;  /* (4 bytes) Symbol name  */
@@ -112,3 +187,4 @@ ELFFunction::ELFHeaderStruct* ELFFunction::ReadELF_Identifier()
 //		Elf64_Xword st_size; /*  (8 bytes) Symbol size */
 
 //	} Elf64_Sym;
+

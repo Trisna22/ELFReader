@@ -13,6 +13,7 @@ public:
 	void readSectionHeader();
 	void readSectionHeader(string);
 	void readSectionHeader(int);
+	void readAllSymbols();
 	bool IsReady();
 private:
 	FILE* readFile = NULL;
@@ -74,4 +75,16 @@ void ELFReader::readSectionHeader(int index)
 	}
 
 	ELFHeader::readSectionHeader(index);
+}
+
+/*   Reads all symbols in the file.   */
+void ELFReader::readAllSymbols()
+{
+	if (ELFFunction::IsReady() == false)
+	{
+		cout << "ELFReader class Not ready yet!\n" << endl;
+		return;
+	}
+
+	ELFFunction::readSymbols();
 }

@@ -107,6 +107,18 @@ int main(int argc, char* argv[])
 
 			return 0;
 		}
+		else if (arg == "-F" || arg == "--functions" || arg == "--symbols")
+		{
+			if (argc != 3)
+			{
+				printf("Usage: ELFReader -F %%filename\n\n");
+				return -1;
+			}
+
+			ELFReader reader(argv[i +1]);
+			reader.readAllSymbols();
+			return 0;
+		}
 		else
 		{
 			printf("Unknown argument/option combination: %s\n\n", arg.c_str());

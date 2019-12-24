@@ -111,7 +111,6 @@ protected:
 	/*   Silent functions of reading headers   */
 	bool silentReadELFHeader();
 	bool silentReadSectionHeaders();
-	bool silentReadProgramHeaders();
 };
 
 #endif // !~ ELFHeader_H
@@ -1267,7 +1266,7 @@ void ELFHeader::readSectionHeader(string sectionName)
 			printSectionHeader(section);
 			return;
 		}
-		
+
 		// If the section header is not found.
 		printf("%s section not found!\n\n", sectionName.c_str());
 		return;
@@ -1652,10 +1651,10 @@ bool ELFHeader::silentReadELFHeader()
 
 	// Get size of file.
 	struct stat st;
-	fstat(this->readFile->_fileno, &st);	
+	fstat(this->readFile->_fileno, &st);
 
 	// Read file.
-	char* p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, 
+	char* p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE,
 		this->readFile->_fileno, 0);
 
 	// Based on bit system.
@@ -1719,8 +1718,4 @@ bool ELFHeader::silentReadSectionHeaders()
 
 	// Change pointer to beginning of file.
 	fseek(this->readFile, 0, SEEK_SET);
-}
-bool ELFHeader::silentReadProgramHeaders()
-{
-	return false;
 }
