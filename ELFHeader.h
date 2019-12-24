@@ -82,10 +82,12 @@ private:
 	int GetIntFromBytes(char, char);
 
 protected:
+	// ELF header structures.
 	ELFHeaderStruct* identifier;
 	Elf32_Ehdr* elfHeader32;
 	Elf64_Ehdr* elfHeader64;
 
+	// Section header arrays.
 	vector<ELF_SECTIONHEADER32> SectionHeaders32;
 	vector<ELF_SECTIONHEADER64> SectionHeaders64;
 
@@ -672,7 +674,7 @@ void ELFHeader::readProgramHeader32()
 	for (int i = 0; i < this->elfHeader32->e_phnum; i++)
 	{
 		ELF_PROGRAMHEADER32 programHeader;
-		if (fread(&programHeader, sizeof(ELF_PROGRAMHEADER32), 1, readFile) == 0)
+		if (fread(&programHeader, sizeof(ELF_PROGRAMHEADER32), 1, this->readFile) == 0)
 		{
 			printf("ProgramHeader: Failed to read bytes for program header[%d]!\n", i);
 			this->InvalidELFFormat = true;

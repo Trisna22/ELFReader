@@ -80,9 +80,9 @@ void ELFReader::readSectionHeader(int index)
 /*   Reads all symbols in the file.   */
 void ELFReader::readAllSymbols()
 {
-	if (ELFFunction::IsReady() == false)
+	if (ELFFunction::silentReadELFHeader() == false)
 	{
-		cout << "ELFReader class Not ready yet!\n" << endl;
+		printf("ELFReader: Failed to read ELF header in silent mode!\n\n");
 		return;
 	}
 

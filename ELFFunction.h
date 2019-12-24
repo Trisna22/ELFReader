@@ -54,10 +54,19 @@ private:
                 unsigned long entrySize;
         } ELF_SECTIONHEADER64;
 
-	ELFHeaderStruct* ReadELF_Identifier();
+	ELF_HEADER* ReadELF_Identifier();
+	int GetIndexOfSection(string);
 protected:
-	ELFHeaderStruct* identifier;
+	// ELF header structures.
+	ELF_HEADER* identifier;
+	Elf32_Ehdr* elfHeader32;
+	Elf64_Ehdr* elfHeader64;
 
+	// Section header array.
+	vector<ELF_SECTIONHEADER32> SectionHeaders32;
+	vector<ELF_SECTIONHEADER64> SectionHeaders64;
+
+	// Symbol table array.
 	vector<Elf32_Sym> Symbols32;
 	vector<Elf64_Sym> Symbols64;
 
@@ -111,14 +120,14 @@ bool ELFFunction::IsReady()
 }
 
 /*   Get the bitsystem of the file, also check if is really ELF format.   */
-ELFFunction::ELFHeaderStruct* ELFFunction::ReadELF_Identifier()
+ELFFunction::ELF_HEADER* ELFFunction::ReadELF_Identifier()
 {
 	/*   Reads our structure from file.   */
 	ELF_HEADER *elfHeader = new ELF_HEADER();
 	int status = fread(elfHeader, sizeof(ELF_HEADER), 1, readFile);
 	if (status == 0)
 	{
-		printf("ELFHeader: failed to read bytes from file!\n");
+		printf("ELFFunction: failed to read bytes from file!\n");
 		this->InvalidELFFormat = true;
 		return 0;
 	}
@@ -129,7 +138,7 @@ ELFFunction::ELFHeaderStruct* ELFFunction::ReadELF_Identifier()
 	if (!(elfHeader->magicNumber[0] == 0x7F && elfHeader->magicNumber[1] == 'E' &&
 		elfHeader->magicNumber[2] == 'L' && elfHeader->magicNumber[3] == 'F'))
 	{
-		printf("ELFHeader: No magic number detected! Wrong ELF format!\n");
+		printf("ELFFunction: No magic number detected! Wrong ELF format!\n");
 		this->InvalidELFFormat = true;
 		return 0;
 	}
@@ -137,7 +146,7 @@ ELFFunction::ELFHeaderStruct* ELFFunction::ReadELF_Identifier()
 	// Based by: bitsystem
 	if (!(elfHeader->bitSystem == 0x01 || elfHeader->bitSystem == 0x02))
 	{
-		printf("ELFHeader: Wrong bitsystem detected! Wrong ELF format or not supported!\n");
+		printf("ELFFunction: Wrong bitsystem detected! Wrong ELF format or not supported!\n");
 		this->InvalidELFFormat = true;
 		return 0;
 	}
@@ -146,20 +155,134 @@ ELFFunction::ELFHeaderStruct* ELFFunction::ReadELF_Identifier()
 	return elfHeader;
 }
 
+/*   Gets the index number from the section table.   */
+int ELFFunction::GetIndexOfSection(string sectionName)
+{
+	// Get size of file.
+	struct stat st;
+	fstat(this->readFile->_fileno, &st);
+
+	if (this->identifier->bitSystem == 0x01)
+	{
+		// Read file again, in memory.
+		char* p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE,
+			this->readFile->_fileno, 0); // File int and offset.
+		Elf32_Shdr* shdr = (Elf32_Shdr*)(p + this->elfHeader32->e_shoff);
+
+		// Get the names from string table.
+		Elf32_Shdr* sh_strtab = &shdr[this->elfHeader32->e_shstrndx];
+		const char* const sh_strtab_p = p + sh_strtab->sh_offset;
+
+		// Keep looping until we got the right index.
+		for (int i = 0; i < this->elfHeader32->e_shnum; i++)
+		{
+			string name = sh_strtab_p + shdr[i].sh_name;
+			if (name == sectionName)
+				return i;
+		}
+
+		return -1;
+	}
+	else
+	{
+		// Read file again, in memory.
+		char* p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE,
+		this->readFile->_fileno, 0); // File int and offset.
+		Elf64_Shdr* shdr = (Elf64_Shdr*)(p + this->elfHeader64->e_shoff);
+
+		// Get the names from string table.
+		Elf64_Shdr* sh_strtab = &shdr[this->elfHeader64->e_shstrndx];
+		const char* const sh_strtab_p = p + sh_strtab->sh_offset;
+
+		// Keep looping until we got the right index.
+		for (int i = 0; i < this->elfHeader64->e_shnum; i++)
+		{
+			string name = sh_strtab_p + shdr[i].sh_name;
+			if (name == sectionName)
+				return i;
+		}
+
+		return -1;
+	}
+}
+
 /*   Read all symbols.   */
 void ELFFunction::readSymbols()
 {
-	printf("SYMBOLS\n");
+	if (silentReadSectionHeaders() == false)
+	{
+		printf("ELFFunction: Failed to read section headers in silent!\n\n");
+		this->InvalidELFFormat = true;
+		return;
+	}
 
-	// Read offset of section table with index of symbol table.
+	if (this->identifier->bitSystem == 0x01)
+	{
+		readSymbols32();
+	}
+	else
+	{
+		readSymbols64();
+	}
 
-	// Elf32_Sym structure.
-
-	//printing out symbols.
 }
 void ELFFunction::readSymbols32()
 {
+	// Get the symbol table from section header.
+	int index = GetIndexOfSection(".symtab");
 
+	// Read offset of section table with index of symbol table.
+	int symTableOffset = this->SectionHeaders32.at(index).offset;
+	fseek(this->readFile, symTableOffset, SEEK_SET);
+
+	// Size of section .symtab / size of entry (ELF_SECTIONHEADER32::entrySize) = count.
+	int countOfSymbols = this->SectionHeaders32.at(index).sectionSizeFile /
+		this->SectionHeaders32.at(index).entrySize;
+	printf("Counted %d symbols\n", countOfSymbols);
+
+	// Loop trough every symbol.
+	for (int i = 0; i < countOfSymbols; i++)
+	{
+		Elf32_Sym symbol;
+		if (fread(&symbol, sizeof(Elf32_Sym), 1, this->readFile) == 0)
+		{
+			printf("ELFFunction: Failed to read symbol [%d]\n\n", i);
+			this->InvalidELFFormat = true;
+			return;
+		}
+
+		// Symbol name.
+		printf("Symbol [%d]:\n", i);
+		printf("  Offset of name:\t\t\t%d bytes in string table (0x%x)\n", 
+			symbol.st_name, symbol.st_name);
+
+		// Symbol binding.
+		printf("  Binding:\t\t\t\t");
+		switch (symbol.st_info)
+		{
+			case 0x00:
+				printf("Not visible\n");
+				break;
+			case 0x01:
+				printf("Global symbol\n");
+				break;
+			case 0x02:
+				printf("Weak symbol\n");
+				break;
+			case 0x010:
+				printf("Environ specific\n");
+			default:
+				printf("Default\n");
+				break;
+		}
+
+		// Symbol size.
+		printf("  Size:\t\t\t\t\t%d bytes (0x%x)\n", symbol.st_size, symbol.st_size);
+
+		// Symbol value.
+		printf("  Value:\t\t\t\t0x%x\n\n", symbol.st_value);
+
+	}
 }
 void ELFFunction::readSymbols64()
 {
@@ -170,21 +293,81 @@ void ELFFunction::readSymbols64()
 /*   Silent functions of reading headers   */
 bool ELFFunction::silentReadELFHeader()
 {
-	return false;
+	if (IsReady() == false)
+	{
+		printf("ELF class not ready yet!\n");
+		return false;
+	}
+
+	// Change pointer to beginning of file.
+	fseek(this->readFile, 0, SEEK_SET);
+
+	// Get size of file.
+	struct stat st;
+	fstat(this->readFile->_fileno, &st);
+
+	// Read file.
+	char* p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE,
+		this->readFile->_fileno, 0);
+
+	// Based on bit system.
+	if (this->identifier->bitSystem == 0x01)
+	{
+		this->elfHeader32 = (Elf32_Ehdr*)p;
+	}
+	else
+	{
+		this->elfHeader64 = (Elf64_Ehdr*)p;
+	}
+
+	return true;
 }
 bool ELFFunction::silentReadSectionHeaders()
 {
-	return false;
+	if (IsReady() == false)
+	{
+		printf("ELF class not ready yet!\n");
+		return false;
+	}
+
+	if (this->identifier->bitSystem == 0x01)
+	{
+		fseek(this->readFile, this->elfHeader32->e_shoff, SEEK_SET);
+
+		for (int i = 0; i < this->elfHeader32->e_shnum; i++)
+		{
+			ELF_SECTIONHEADER32 section;
+			if (fread(&section, sizeof(ELF_SECTIONHEADER32), 1, this->readFile) == 0)
+			{
+				printf("Silent SectionHeader: Failed to read bytes for section header!\b");
+				this->InvalidELFFormat = true;
+				return false;
+			}
+
+			this->SectionHeaders32.push_back(section);
+		}
+
+		return true;
+	}
+	else
+	{
+		fseek(this->readFile, this->elfHeader64->e_shoff, SEEK_SET);
+
+		for (int i = 0; i < this->elfHeader64->e_shnum; i++)
+		{
+			ELF_SECTIONHEADER64 section;
+			if (fread(&section, sizeof(ELF_SECTIONHEADER64), 1, this->readFile) == 0)
+			{
+				printf("Silent SectionHeader: Failed to read bytes for section header!\b");
+				this->InvalidELFFormat = true;
+				return false;
+			}
+
+			this->SectionHeaders64.push_back(section);
+		}
+
+		return true;
+	}
 }
 
-//	typedef struct
-//	{
-//		Elf64_Word st_name;  /* (4 bytes) Symbol name  */
-//		unsigned char st_info;  /* (1 byte) Symbol type and binding */
-//		unsigned char st_other; /* (1 byte) Symbol visibility */
-//		Elf64_Section st_shndx; /* (2 bytes) Section index */ 
-//		Elf64_Addr st_value; /* (8 bytes) Symbol value */
-//		Elf64_Xword st_size; /*  (8 bytes) Symbol size */
-
-//	} Elf64_Sym;
 
