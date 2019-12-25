@@ -240,6 +240,8 @@ void ELFFunction::readSymbols32()
 		this->SectionHeaders32.at(index).entrySize;
 	printf("Counted %d symbols\n", countOfSymbols);
 
+	printf("Index | Address  |   Binding   | Size | Value\n");
+
 	// Loop trough every symbol.
 	for (int i = 0; i < countOfSymbols; i++)
 	{
@@ -251,36 +253,72 @@ void ELFFunction::readSymbols32()
 			return;
 		}
 
-		// Symbol name.
+		/*
+			http://www.skyfree.org/linux/references/ELF_Format.pdf
+
+			page 23 (1-17)
+
+			tearing apart the st_info byte into sections.
+			And think of a new way to output this.
+
+		*/
+
+		// Symbol name address.
 		printf("Symbol [%d]:\n", i);
-		printf("  Offset of name:\t\t\t%d bytes in string table (0x%x)\n", 
+		printf("  Offset:\t\t%d bytes in string table (0x%x)\n",
 			symbol.st_name, symbol.st_name);
 
+		// I guess the same thing with the section table,
+		//  get the actual name from the string table.
+		if (symbol.st_name == 0)
+		{
+			printf("  Name:\t\t\n");
+		}
+		else
+		{
+			int stringTableIndex = GetIndexOfSection(".strtab");
+
+			struct stat st;
+			fstat(this->readFile->_fileno, &st);
+
+			char *p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE,
+				this->readFile->_fileno, 0);
+
+			Elf32_Shdr* shdr = (Elf32_Shdr*)(p + this->elfHeader32->e_shoff);
+
+			Elf32_Shdr* sh_strtab = &shdr[stringTableIndex];
+			const char * const sh_strtab_p = p + sh_strtab->sh_offset;
+
+			printf("  Name:\t\t\t%s\n", sh_strtab_p + symbol.st_name);
+		}
+
 		// Symbol binding.
-		printf("  Binding:\t\t\t\t");
+		printf("  Binding:\t\t");
 		switch (symbol.st_info)
 		{
 			case 0x00:
-				printf("Not visible\n");
+				printf("INVISIBLE");
 				break;
 			case 0x01:
-				printf("Global symbol\n");
+				printf("GLOBAL");
 				break;
 			case 0x02:
-				printf("Weak symbol\n");
+				printf("WEAK");
 				break;
 			case 0x010:
-				printf("Environ specific\n");
+				printf("ENVIRON");
+				break;
 			default:
-				printf("Default\n");
+				printf("DEFAULT");
 				break;
 		}
+		printf("\n");
 
 		// Symbol size.
-		printf("  Size:\t\t\t\t\t%d bytes (0x%x)\n", symbol.st_size, symbol.st_size);
+		printf("  Size:\t\t\t%d bytes (%p)\n", symbol.st_size, reinterpret_cast<void*>(symbol.st_size));
 
 		// Symbol value.
-		printf("  Value:\t\t\t\t0x%x\n\n", symbol.st_value);
+		printf("  Function address:\t0x%x\n\n", symbol.st_value);
 
 	}
 }
