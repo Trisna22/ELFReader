@@ -2,6 +2,7 @@
 
 #ifndef ELFFunction_H
 #define ELFFunction_H
+
 class ELFFunction
 {
 public:
@@ -78,7 +79,6 @@ protected:
 	/*   Silent functions of reading headers   */
         bool silentReadELFHeader();
         bool silentReadSectionHeaders();
-        bool silentReadProgramHeaders();
 };
 
 #endif // !~ ELFFunction_H
@@ -294,7 +294,7 @@ void ELFFunction::readSymbols32()
 
 		// Symbol binding.
 		printf("  Binding:\t\t");
-		switch (symbol.st_info)
+		switch (ELF32_ST_BIND(symbol.st_info))
 		{
 			case 0x00:
 				printf("INVISIBLE");
@@ -314,16 +314,158 @@ void ELFFunction::readSymbols32()
 		}
 		printf("\n");
 
+		// Symbol type.
+		printf("  Type:\t\t\t");
+		switch (ELF32_ST_TYPE(symbol.st_info))
+		{
+			case 0x0:
+				printf("NO TYPE\n");
+				break;
+			case 0x01:
+				printf("OBJECT\n");
+				break;
+			case 0x02:
+				printf("FUNCTION\n");
+				break;
+			case 0x03:
+				printf("SECTION\n");
+				break;
+			case 0x04:
+				printf("FILE\n");
+				break;
+			case 0x13:
+				printf("LOW PROCESSOR\n");
+				break;
+			case 0x14:
+				printf("HIGH PROCCESSOR\n");
+				break;
+			default:
+				printf("UNKNOWN\n");
+				break;
+		}
+
 		// Symbol size.
 		printf("  Size:\t\t\t%d bytes (%p)\n", symbol.st_size, reinterpret_cast<void*>(symbol.st_size));
 
 		// Symbol value.
 		printf("  Function address:\t0x%x\n\n", symbol.st_value);
-
 	}
 }
 void ELFFunction::readSymbols64()
 {
+	// Get the symbol table from section header.
+	int index = GetIndexOfSection(".symtab");
+
+	// Read offset of section table with index of symbol table.
+	int symTableOffset = this->SectionHeaders64.at(index).offset;
+	fseek(this->readFile, symTableOffset, SEEK_SET);
+
+	// Size of section .symtab / size of entry (ELF_SECTIONHEADER32::entrySize) = count.
+	int countOfSymbols = this->SectionHeaders64.at(index).sectionSizeFile /
+		this->SectionHeaders64.at(index).entrySize;
+	printf("Counted %d symbols\n", countOfSymbols);
+
+	printf("Index | Address  |   Binding   | Size | Value\n");
+
+	// Loop trough every symbol.
+	for (int i = 0; i < countOfSymbols; i++)
+	{
+		Elf64_Sym symbol;
+		if (fread(&symbol, sizeof(Elf64_Sym), 1, this->readFile) == 0)
+		{
+			printf("ELFFunction: Failed to read symbol [%d]\n\n", i);
+			this->InvalidELFFormat = true;
+			return;
+		}
+
+		// Symbol name address.
+		printf("Symbol [%d]:\n", i);
+		printf("  Offset:\t\t%d bytes in string table (0x%x)\n",
+			symbol.st_name, symbol.st_name);
+
+		// I guess the same thing with the section table,
+		//  get the actual name from the string table.
+		if (symbol.st_name == 0)
+		{
+			printf("  Name:\t\t\n");
+		}
+		else
+		{
+			int stringTableIndex = GetIndexOfSection(".strtab");
+
+			struct stat st;
+			fstat(this->readFile->_fileno, &st);
+
+			char *p = (char*)mmap(0, st.st_size, PROT_READ, MAP_PRIVATE,
+				this->readFile->_fileno, 0);
+
+			Elf64_Shdr* shdr = (Elf64_Shdr*)(p + this->elfHeader64->e_shoff);
+
+			Elf64_Shdr* sh_strtab = &shdr[stringTableIndex];
+			const char * const sh_strtab_p = p + sh_strtab->sh_offset;
+
+			printf("  Name:\t\t\t%s\n", sh_strtab_p + symbol.st_name);
+		}
+
+		// Symbol binding.
+		printf("  Binding:\t\t");
+		switch (ELF64_ST_BIND(symbol.st_info))
+		{
+			case 0x00:
+				printf("INVISIBLE");
+				break;
+			case 0x01:
+				printf("GLOBAL");
+				break;
+			case 0x02:
+				printf("WEAK");
+				break;
+			case 0x010:
+				printf("ENVIRON");
+				break;
+			default:
+				printf("DEFAULT");
+				break;
+		}
+		printf("\n");
+
+		// Symbol type.
+		printf("  Type:\t\t\t");
+		switch (ELF64_ST_TYPE(symbol.st_info))
+		{
+			case 0x0:
+				printf("NO TYPE\n");
+				break;
+			case 0x01:
+				printf("OBJECT\n");
+				break;
+			case 0x02:
+				printf("FUNCTION\n");
+				break;
+			case 0x03:
+				printf("SECTION\n");
+				break;
+			case 0x04:
+				printf("FILE\n");
+				break;
+			case 0x13:
+				printf("LOW PROCESSOR\n");
+				break;
+			case 0x14:
+				printf("HIGH PROCCESSOR\n");
+				break;
+			default:
+				printf("UNKNOWN\n");
+				break;
+		}
+
+		// Symbol size.
+		printf("  Size:\t\t\t%ld bytes (%p)\n", symbol.st_size, reinterpret_cast<void*>(symbol.st_size));
+
+		// Symbol value.
+		printf("  Function address:\t0x%lx\n\n", symbol.st_value);
+
+	}
 
 }
 
