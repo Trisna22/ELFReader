@@ -12,4 +12,4 @@ Personal goals:
 -Using OOP in c++
 
 
-(c) 2019-2020 Trisna Quebe all rights reserved
+(c) 2020 Trisna Quebe all rights reserved
